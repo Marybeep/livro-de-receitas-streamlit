@@ -24,12 +24,58 @@ CREATE TABLE IF NOT EXISTS receitas (
 conn.commit()
 
 # ---------------- CSS + ANIMAÇÕES ----------------
-st.markdown(""")
+st.markdown("""
 <style>
 @keyframes fadeSlide {
     from {opacity: 0; transform: translateY(30px);}
     to {opacity: 1; transform: translateY(0);}
 }
+
+@keyframes zoomIn {
+    from {transform: scale(0.95); opacity: 0;}
+    to {transform: scale(1); opacity: 1;}
+}
+
+.title {
+    font-size: 48px;
+    text-align: center;
+    font-weight: bold;
+    animation: fadeSlide 1s ease;
+}
+
+.subtitle {
+    text-align: center;
+    color: #666;
+    margin-bottom: 30px;
+    animation: fadeSlide 1.3s ease;
+}
+
+.card {
+    background-color: #fff7f0;
+    padding: 22px;
+    border-radius: 18px;
+    margin-bottom: 25px;
+    box-shadow: 0px 6px 14px rgba(0,0,0,0.12);
+    animation: zoomIn 0.8s ease;
+    transition: transform 0.3s;
+}
+
+.card:hover {
+    transform: scale(1.02);
+}
+
+.card-chocolate {
+    background-color: #c9a36b;
+}
+
+.footer {
+    text-align: center;
+    color: #999;
+    margin-top: 40px;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 @keyframes zoomIn {
     from {transform: scale(0.95); opacity: 0;}
