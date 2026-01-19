@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS receitas (
 conn.commit()
 
 # ---------------- CSS + ANIMAÇÕES ----------------
-st.markdown("""
+st.markdown(""")
 <style>
 @keyframes fadeSlide {
     from {opacity: 0; transform: translateY(30px);}
