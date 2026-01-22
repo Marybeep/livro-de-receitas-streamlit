@@ -1,13 +1,24 @@
 import streamlit as st
 import sqlite3
-import time
+from PIL import Image
+import requests
+from streamlit_lottie import st_lottie
 
-# ---------------- CONFIGURAÇÃO DA PÁGINA ----------------
+# ---------------- CONFIGURAÇÃO ----------------
 st.set_page_config(
-    page_title="Livro de Receitas",
+    page_title="Site de Receitas",
     page_icon="🍰",
     layout="centered"
 )
+
+# ---------------- FUNÇÃO ANIMAÇÃO ----------------
+def carregar_lottie(url):
+    r = requests.get(url)
+    if r.status_code == 200:
+        return r.json()
+    return None
+
+animacao = carregar_lottie("https://assets2.lottiefiles.com/packages/lf20_jcikwtux.json")
 
 # ---------------- BANCO DE DADOS ----------------
 conn = sqlite3.connect("receitas.db", check_same_thread=False)
@@ -24,137 +35,127 @@ CREATE TABLE IF NOT EXISTS receitas (
 """)
 conn.commit()
 
-# ---------------- ESTILO ----------------
-st.markdown("""
-<style>
-body {
-    background-color: #fffaf4;
-}
-.card {
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 15px;
-    margin-bottom: 25px;
-    box-shadow: 0px 6px 12px rgba(0,0,0,0.1);
-}
-.titulo {
-    color: #d2691e;
-}
-.rodape {
-    text-align: center;
-    color: gray;
-    margin-top: 40px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------- TÍTULO ----------------
-st.markdown("<h1 class='titulo'>📖 Livro de Receitas</h1>", unsafe_allow_html=True)
-st.write("Um site para cadastrar, visualizar e gerenciar receitas culinárias.")
-
 # ---------------- MENU ----------------
-menu = st.sidebar.selectbox(
-    "Navegação",
-    ["Adicionar Receita", "Visualizar Receitas", "Editar Receita", "Excluir Receita"]
+menu = st.sidebar.radio(
+    "📋 Menu",
+    ["🏠 Início", "📖 Ver Receitas", "➕ Adicionar Receita", "✏️ Editar Receita"]
 )
 
-# ---------------- ADICIONAR ----------------
-if menu == "Adicionar Receita":
-    st.subheader("➕ Adicionar nova receita")
+# ---------------- INÍCIO ----------------
+if menu == "🏠 Início":
+    st.title("🍰 Site de Receitas")
+    st_lottie(animacao, height=250)
 
-    nome = st.text_input("Nome da receita")
-    ingredientes = st.text_area("Ingredientes")
-    preparo = st.text_area("Modo de preparo")
-    imagem = st.text_input("Link da imagem (opcional)")
+    st.markdown("""
+    Bem-vindo ao **Site de Receitas** 🍽️  
+    Aqui você pode:
+    - Cadastrar receitas
+    - Ver receitas
+    - Editar receitas
+    - Todas com imagens salvas no sistema
+    """)
 
-    if st.button("Salvar receita"):
-        with st.spinner("Salvando receita..."):
-            time.sleep(1)
-            cursor.execute(
-                "INSERT INTO receitas (nome, ingredientes, preparo, imagem) VALUES (?, ?, ?, ?)",
-                (nome, ingredientes, preparo, imagem)
-            )
-            conn.commit()
-        st.success("Receita cadastrada com sucesso!")
-
-# ---------------- VISUALIZAR ----------------
-elif menu == "Visualizar Receitas":
-    st.subheader("📚 Receitas cadastradas")
+# ---------------- VER RECEITAS ----------------
+elif menu == "📖 Ver Receitas":
+    st.title("📖 Receitas Cadastradas")
 
     cursor.execute("SELECT * FROM receitas")
     receitas = cursor.fetchall()
 
     if not receitas:
-        st.info("Nenhuma receita cadastrada.")
+        st.warning("Nenhuma receita cadastrada ainda.")
+    else:
+        for r in receitas:
+            id_, nome, ingredientes, preparo, imagem = r
 
-    for r in receitas:
-        st.markdown("<div class='card'>", unsafe_allow_html=True)
-        st.markdown(f"### 🍽️ {r[1]}")
+            if nome.lower() == "bolo de chocolate":
+                st.markdown(
+                    "<div style='background-color:#ffe6eb; padding:15px; border-radius:10px;'>",
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    "<div style='background-color:#f9f9f9; padding:15px; border-radius:10px;'>",
+                    unsafe_allow_html=True
+                )
 
-        if r[4]:
-            st.image(r[4], use_column_width=True)
-        else:
-            st.image(
-                "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-                use_column_width=True
-            )
+            st.subheader(nome)
 
-        with st.expander("Ingredientes"):
-            st.write(r[2])
+            try:
+                img = Image.open(f"imagens/{imagem}")
+                st.image(img, use_container_width=True)
+            except:
+                st.error("Imagem não encontrada.")
 
-        with st.expander("Modo de preparo"):
-            st.write(r[3])
+            st.markdown("**🧾 Ingredientes:**")
+            st.write(ingredientes)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("**👩‍🍳 Modo de preparo:**")
+            st.write(preparo)
 
-# ---------------- EDITAR ----------------
-elif menu == "Editar Receita":
-    st.subheader("✏️ Editar receita")
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.divider()
 
-    cursor.execute("SELECT id, nome FROM receitas")
-    receitas = cursor.fetchall()
+# ---------------- ADICIONAR RECEITA ----------------
+elif menu == "➕ Adicionar Receita":
+    st.title("➕ Adicionar Nova Receita")
 
-    escolha = st.selectbox(
-        "Escolha a receita",
-        receitas,
-        format_func=lambda x: x[1]
+    nome = st.text_input("Nome da receita")
+    ingredientes = st.text_area("Ingredientes")
+    preparo = st.text_area("Modo de preparo")
+
+    imagem = st.selectbox(
+        "Imagem da receita",
+        ["bolo_chocolate.jpg", "bolo_cenoura.jpg", "lasanha.jpg"]
     )
 
-    novo_nome = st.text_input("Novo nome")
-    novos_ingredientes = st.text_area("Novos ingredientes")
-    novo_preparo = st.text_area("Novo modo de preparo")
-    nova_imagem = st.text_input("Novo link da imagem")
+    if st.button("Salvar Receita"):
+        if nome and ingredientes and preparo:
+            cursor.execute(
+                "INSERT INTO receitas (nome, ingredientes, preparo, imagem) VALUES (?, ?, ?, ?)",
+                (nome, ingredientes, preparo, imagem)
+            )
+            conn.commit()
+            st.success("Receita adicionada com sucesso!")
+        else:
+            st.error("Preencha todos os campos.")
 
-    if st.button("Atualizar receita"):
-        with st.spinner("Atualizando receita..."):
-            time.sleep(1)
+# ---------------- EDITAR RECEITA ----------------
+elif menu == "✏️ Editar Receita":
+    st.title("✏️ Editar Receita")
+
+    cursor.execute("SELECT id, nome FROM receitas")
+    lista = cursor.fetchall()
+
+    if not lista:
+        st.warning("Nenhuma receita para editar.")
+    else:
+        escolha = st.selectbox(
+            "Escolha a receita",
+            lista,
+            format_func=lambda x: x[1]
+        )
+
+        id_receita = escolha[0]
+
+        cursor.execute("SELECT * FROM receitas WHERE id=?", (id_receita,))
+        r = cursor.fetchone()
+
+        novo_nome = st.text_input("Nome", r[1])
+        novos_ingredientes = st.text_area("Ingredientes", r[2])
+        novo_preparo = st.text_area("Modo de preparo", r[3])
+
+        nova_imagem = st.selectbox(
+            "Imagem",
+            ["bolo_chocolate.jpg", "bolo_cenoura.jpg", "lasanha.jpg"],
+            index=["bolo_chocolate.jpg", "bolo_cenoura.jpg", "lasanha.jpg"].index(r[4])
+        )
+
+        if st.button("Atualizar Receita"):
             cursor.execute("""
             UPDATE receitas
             SET nome=?, ingredientes=?, preparo=?, imagem=?
             WHERE id=?
-            """, (novo_nome, novos_ingredientes, novo_preparo, nova_imagem, escolha[0]))
+            """, (novo_nome, novos_ingredientes, novo_preparo, nova_imagem, id_receita))
             conn.commit()
-        st.success("Receita atualizada com sucesso!")
-
-# ---------------- EXCLUIR ----------------
-elif menu == "Excluir Receita":
-    st.subheader("🗑️ Excluir receita")
-
-    cursor.execute("SELECT id, nome FROM receitas")
-    receitas = cursor.fetchall()
-
-    escolha = st.selectbox(
-        "Selecione a receita",
-        receitas,
-        format_func=lambda x: x[1]
-    )
-
-    if st.button("Excluir"):
-        with st.spinner("Excluindo receita..."):
-            time.sleep(1)
-            cursor.execute("DELETE FROM receitas WHERE id=?", (escolha[0],))
-            conn.commit()
-        st.success("Receita excluída!")
-
-# ---------------- RODAPÉ ----------------
-st.markdown("<div class='rodape'>Projeto desenvolvido com Streamlit</div>", unsafe_allow_html=True)
+            st.success("Receita atualizada com sucesso!")
