@@ -1,161 +1,173 @@
 import streamlit as st
-import sqlite3
-from PIL import Image
-import requests
-from streamlit_lottie import st_lottie
+import json
+import os
+import base64
 
-# ---------------- CONFIGURAÇÃO ----------------
+# ---------------- CONFIGURAÇÃO DA PÁGINA ----------------
 st.set_page_config(
-    page_title="Site de Receitas",
+    page_title="Livro de Receitas",
     page_icon="🍰",
     layout="centered"
 )
 
-# ---------------- FUNÇÃO ANIMAÇÃO ----------------
-def carregar_lottie(url):
-    r = requests.get(url)
-    if r.status_code == 200:
-        return r.json()
-    return None
+# ---------------- CSS (CORES + ANIMAÇÕES) ----------------
+st.markdown("""
+<style>
+body {
+    background-color: #fffaf5;
+}
+.title {
+    animation: fadeIn 2s;
+    color: #d35400;
+}
+.card {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px #ddd;
+    margin-bottom: 20px;
+    animation: slideUp 1s;
+}
+button {
+    background-color: #e67e22 !important;
+    color: white !important;
+}
+@keyframes fadeIn {
+    from {opacity: 0;}
+    to {opacity: 1;}
+}
+@keyframes slideUp {
+    from {transform: translateY(30px); opacity: 0;}
+    to {transform: translateY(0); opacity: 1;}
+}
+</style>
+""", unsafe_allow_html=True)
 
-animacao = carregar_lottie("https://assets2.lottiefiles.com/packages/lf20_jcikwtux.json")
+# ---------------- IMAGEM EMBUTIDA (BASE64) ----------------
+img_base64 = """
+iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEX///
+8AAAD5+fn09PTn5+fV1dXZ2dnCwsLa2trf39+qqqqOjo7Pz8+vr6+ysrJr7sEAAAB+UlEQVR4nO3bS27DMAxFUZP//6fd2a4YlJZx8MIkYc6y+4YdAAQAAAAAAAAAA8N8zYF5bq3S2X0m4l7bJZKp3J8xF3n9o+5X8zM2b9bZ2y8s5n8u5Yy+uV9nWZ1n1M8m7uYp2Z6Z2m9y0V7e2p3xw5Zr8vZtZ5sX7k6n7vWZ5f7r3n5m3m9Zz4ZP9k5xk9n9z8v6m9z0v7m9n9Y7u4AAAAAAAAAAADwL8wF3Q8lZzv7XwAAAABJRU5ErkJggg==
+"""
 
-# ---------------- BANCO DE DADOS ----------------
-conn = sqlite3.connect("receitas.db", check_same_thread=False)
-cursor = conn.cursor()
-
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS receitas (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT,
-    ingredientes TEXT,
-    preparo TEXT,
-    imagem TEXT
+st.markdown(
+    f"<img src='data:image/png;base64,{img_base64}' width='100%'/>",
+    unsafe_allow_html=True
 )
-""")
-conn.commit()
+
+# ---------------- BANCO DE DADOS (JSON) ----------------
+ARQUIVO = "receitas.json"
+
+def carregar_receitas():
+    if os.path.exists(ARQUIVO):
+        with open(ARQUIVO, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+def salvar_receitas(receitas):
+    with open(ARQUIVO, "w", encoding="utf-8") as f:
+        json.dump(receitas, f, ensure_ascii=False, indent=4)
 
 # ---------------- MENU ----------------
 menu = st.sidebar.radio(
-    "📋 Menu",
-    ["🏠 Início", "📖 Ver Receitas", "➕ Adicionar Receita", "✏️ Editar Receita"]
+    "📌 Menu",
+    ["🏠 Home", "📖 Receitas", "➕ Adicionar Receita", "🎨 Sobre o Projeto"]
 )
 
-# ---------------- INÍCIO ----------------
-if menu == "🏠 Início":
-    st.title("🍰 Site de Receitas")
-    st_lottie(animacao, height=250)
-
-    st.markdown("""
-    Bem-vindo ao **Site de Receitas** 🍽️  
-    Aqui você pode:
-    - Cadastrar receitas
-    - Ver receitas
-    - Editar receitas
-    - Todas com imagens salvas no sistema
+# ---------------- HOME ----------------
+if menu == "🏠 Home":
+    st.markdown("<h1 class='title'>📘 Livro de Receitas</h1>", unsafe_allow_html=True)
+    st.write("""
+    Este site foi desenvolvido para **cadastrar, visualizar, editar e excluir receitas**.
+    
+    O projeto utiliza **Streamlit**, aplica **estilos, animações, formulários e banco de dados**,
+    conforme solicitado no trabalho final.
     """)
 
-# ---------------- VER RECEITAS ----------------
-elif menu == "📖 Ver Receitas":
-    st.title("📖 Receitas Cadastradas")
-
-    cursor.execute("SELECT * FROM receitas")
-    receitas = cursor.fetchall()
-
+# ---------------- LISTAR / EDITAR RECEITAS ----------------
+elif menu == "📖 Receitas":
+    receitas = carregar_receitas()
     if not receitas:
-        st.warning("Nenhuma receita cadastrada ainda.")
+        st.info("Nenhuma receita cadastrada.")
     else:
-        for r in receitas:
-            id_, nome, ingredientes, preparo, imagem = r
+        for i, r in enumerate(receitas):
+            st.markdown("<div class='card'>", unsafe_allow_html=True)
+            st.subheader(r["nome"])
+            st.write("**Ingredientes:**")
+            st.write(r["ingredientes"])
+            st.write("**Modo de preparo:**")
+            st.write(r["modo"])
 
-            if nome.lower() == "bolo de chocolate":
-                st.markdown(
-                    "<div style='background-color:#ffe6eb; padding:15px; border-radius:10px;'>",
-                    unsafe_allow_html=True
-                )
-            else:
-                st.markdown(
-                    "<div style='background-color:#f9f9f9; padding:15px; border-radius:10px;'>",
-                    unsafe_allow_html=True
-                )
-
-            st.subheader(nome)
-
-            try:
-                img = Image.open(f"imagens/{imagem}")
-                st.image(img, use_container_width=True)
-            except:
-                st.error("Imagem não encontrada.")
-
-            st.markdown("**🧾 Ingredientes:**")
-            st.write(ingredientes)
-
-            st.markdown("**👩‍🍳 Modo de preparo:**")
-            st.write(preparo)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✏️ Editar", key=f"edit{i}"):
+                    st.session_state["editar"] = i
+            with col2:
+                if st.button("🗑️ Excluir", key=f"del{i}"):
+                    receitas.pop(i)
+                    salvar_receitas(receitas)
+                    st.experimental_rerun()
 
             st.markdown("</div>", unsafe_allow_html=True)
-            st.divider()
+
+    if "editar" in st.session_state:
+        idx = st.session_state["editar"]
+        r = receitas[idx]
+
+        st.markdown("## ✏️ Editar Receita")
+        novo_nome = st.text_input("Nome", r["nome"])
+        novos_ing = st.text_area("Ingredientes", r["ingredientes"])
+        novo_modo = st.text_area("Modo de preparo", r["modo"])
+
+        if st.button("Salvar Alterações"):
+            receitas[idx] = {
+                "nome": novo_nome,
+                "ingredientes": novos_ing,
+                "modo": novo_modo
+            }
+            salvar_receitas(receitas)
+            del st.session_state["editar"]
+            st.success("Receita atualizada!")
+            st.experimental_rerun()
 
 # ---------------- ADICIONAR RECEITA ----------------
 elif menu == "➕ Adicionar Receita":
-    st.title("➕ Adicionar Nova Receita")
+    st.markdown("<h2 class='title'>➕ Nova Receita</h2>", unsafe_allow_html=True)
 
     nome = st.text_input("Nome da receita")
     ingredientes = st.text_area("Ingredientes")
-    preparo = st.text_area("Modo de preparo")
-
-    imagem = st.selectbox(
-        "Imagem da receita",
-        ["bolo_chocolate.jpg", "bolo_cenoura.jpg", "lasanha.jpg"]
-    )
+    modo = st.text_area("Modo de preparo")
 
     if st.button("Salvar Receita"):
-        if nome and ingredientes and preparo:
-            cursor.execute(
-                "INSERT INTO receitas (nome, ingredientes, preparo, imagem) VALUES (?, ?, ?, ?)",
-                (nome, ingredientes, preparo, imagem)
-            )
-            conn.commit()
-            st.success("Receita adicionada com sucesso!")
+        if nome and ingredientes and modo:
+            receitas = carregar_receitas()
+            receitas.append({
+                "nome": nome,
+                "ingredientes": ingredientes,
+                "modo": modo
+            })
+            salvar_receitas(receitas)
+            st.success("Receita cadastrada com sucesso!")
         else:
-            st.error("Preencha todos os campos.")
+            st.warning("Preencha todos os campos.")
 
-# ---------------- EDITAR RECEITA ----------------
-elif menu == "✏️ Editar Receita":
-    st.title("✏️ Editar Receita")
+# ---------------- SOBRE ----------------
+elif menu == "🎨 Sobre o Projeto":
+    st.markdown("<h2 class='title'>🎨 Sobre o Projeto</h2>", unsafe_allow_html=True)
+    st.write("""
+    **Objetivo:** Criar um sistema web para gerenciamento de receitas.
 
-    cursor.execute("SELECT id, nome FROM receitas")
-    lista = cursor.fetchall()
+    **Tecnologias usadas:**
+    - Python
+    - Streamlit
 
-    if not lista:
-        st.warning("Nenhuma receita para editar.")
-    else:
-        escolha = st.selectbox(
-            "Escolha a receita",
-            lista,
-            format_func=lambda x: x[1]
-        )
+    **Funcionalidades:**
+    - Cadastro
+    - Consulta
+    - Edição
+    - Exclusão
+    - Estilização
+    - Animações
+    - Banco de dados local
 
-        id_receita = escolha[0]
-
-        cursor.execute("SELECT * FROM receitas WHERE id=?", (id_receita,))
-        r = cursor.fetchone()
-
-        novo_nome = st.text_input("Nome", r[1])
-        novos_ingredientes = st.text_area("Ingredientes", r[2])
-        novo_preparo = st.text_area("Modo de preparo", r[3])
-
-        nova_imagem = st.selectbox(
-            "Imagem",
-            ["bolo_chocolate.jpg", "bolo_cenoura.jpg", "lasanha.jpg"],
-            index=["bolo_chocolate.jpg", "bolo_cenoura.jpg", "lasanha.jpg"].index(r[4])
-        )
-
-        if st.button("Atualizar Receita"):
-            cursor.execute("""
-            UPDATE receitas
-            SET nome=?, ingredientes=?, preparo=?, imagem=?
-            WHERE id=?
-            """, (novo_nome, novos_ingredientes, novo_preparo, nova_imagem, id_receita))
-            conn.commit()
-            st.success("Receita atualizada com sucesso!")
+    Projeto desenvolvido para fins acadêmicos.
+    """)
